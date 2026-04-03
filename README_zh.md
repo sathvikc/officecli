@@ -9,7 +9,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/iOfficeAI/OfficeCLI)](https://github.com/iOfficeAI/OfficeCLI/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-[English](README.md) | **中文**
+[English](README.md) | **中文** | [日本語](README_ja.md) | [한국어](README_ko.md)
 
 <p align="center">
   <img src="assets/ppt-process.gif" alt="在 AionUi 上使用 OfficeCLI 的 PPT 制作过程" width="100%">

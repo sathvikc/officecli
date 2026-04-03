@@ -9,7 +9,7 @@ Open-source. Single binary. No Office installation. No dependencies. Works every
 [![GitHub Release](https://img.shields.io/github/v/release/iOfficeAI/OfficeCLI)](https://github.com/iOfficeAI/OfficeCLI/releases)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-**English** | [中文](README_zh.md)
+**English** | [中文](README_zh.md) | [日本語](README_ja.md) | [한국어](README_ko.md)
 
 <p align="center">
   <img src="assets/ppt-process.gif" alt="OfficeCLI creating a PowerPoint presentation on AionUi" width="100%">
