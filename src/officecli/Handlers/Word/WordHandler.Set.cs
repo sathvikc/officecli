@@ -1895,6 +1895,11 @@ public partial class WordHandler
             }
         }
 
+        // Refresh w14:textId on the affected paragraph (content changed)
+        var affectedPara = element as Paragraph ?? element.Ancestors<Paragraph>().FirstOrDefault();
+        if (affectedPara != null)
+            affectedPara.TextId = GenerateParaId();
+
         _doc.MainDocumentPart?.Document?.Save();
         return unsupported;
     }

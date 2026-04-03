@@ -558,7 +558,10 @@ public partial class WordHandler
 
         foreach (var para in paragraphs)
         {
-            totalCount += ReplaceInParagraph(para, find, replace);
+            var count = ReplaceInParagraph(para, find, replace);
+            if (count > 0)
+                para.TextId = GenerateParaId();
+            totalCount += count;
         }
 
         return totalCount;
@@ -1030,6 +1033,7 @@ public partial class WordHandler
     {
         public ChartPart? StandardPart { get; set; }
         public ExtendedChartPart? ExtendedPart { get; set; }
+        public DW.DocProperties? DocProperties { get; set; }
         public bool IsExtended => ExtendedPart != null;
     }
 
@@ -1047,6 +1051,8 @@ public partial class WordHandler
             var graphicData = inline.Descendants<A.GraphicData>().FirstOrDefault();
             if (graphicData == null) continue;
 
+            var docProps = inline.Descendants<DW.DocProperties>().FirstOrDefault();
+
             if (graphicData.Uri == WordChartUri)
             {
                 // Standard chart
@@ -1055,7 +1061,7 @@ public partial class WordHandler
                 try
                 {
                     var chartPart = (ChartPart)mainPart.GetPartById(chartRef.Id.Value);
-                    result.Add(new WordChartInfo { StandardPart = chartPart });
+                    result.Add(new WordChartInfo { StandardPart = chartPart, DocProperties = docProps });
                 }
                 catch { /* skip invalid references */ }
             }
@@ -1067,7 +1073,7 @@ public partial class WordHandler
                 try
                 {
                     var extPart = (ExtendedChartPart)mainPart.GetPartById(relId);
-                    result.Add(new WordChartInfo { ExtendedPart = extPart });
+                    result.Add(new WordChartInfo { ExtendedPart = extPart, DocProperties = docProps });
                 }
                 catch { /* skip invalid references */ }
             }
@@ -1142,5 +1148,112 @@ public partial class WordHandler
 
         // comments/trackedChanges → not typically editable
         return false;
+    }
+
+    /// <summary>
+    /// Generate a unique 8-character uppercase hex ID for w14:paraId / w14:textId.
+    /// </summary>
+    private static string GenerateParaId()
+    {
+        return Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+    }
+
+    /// <summary>
+    /// Assign paraId and textId to a paragraph if not already set.
+    /// </summary>
+    private static void AssignParaId(Paragraph para)
+    {
+        if (string.IsNullOrEmpty(para.ParagraphId?.Value))
+            para.ParagraphId = GenerateParaId();
+        if (string.IsNullOrEmpty(para.TextId?.Value))
+            para.TextId = GenerateParaId();
+    }
+
+    /// <summary>
+    /// Ensure all paragraphs in the document have w14:paraId and w14:textId.
+    /// Called on document open.
+    /// </summary>
+    private void EnsureAllParaIds()
+    {
+        var mainPart = _doc.MainDocumentPart;
+        if (mainPart?.Document?.Body == null) return;
+
+        var usedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Collect all paragraphs from body + headers + footers
+        var allParagraphs = mainPart.Document.Body.Descendants<Paragraph>().AsEnumerable();
+        foreach (var headerPart in mainPart.HeaderParts)
+            if (headerPart.Header != null)
+                allParagraphs = allParagraphs.Concat(headerPart.Header.Descendants<Paragraph>());
+        foreach (var footerPart in mainPart.FooterParts)
+            if (footerPart.Footer != null)
+                allParagraphs = allParagraphs.Concat(footerPart.Footer.Descendants<Paragraph>());
+
+        var paragraphs = allParagraphs.ToList();
+
+        // Collect existing IDs first to avoid collisions
+        foreach (var para in paragraphs)
+        {
+            if (!string.IsNullOrEmpty(para.ParagraphId?.Value))
+                usedIds.Add(para.ParagraphId.Value);
+            if (!string.IsNullOrEmpty(para.TextId?.Value))
+                usedIds.Add(para.TextId.Value);
+        }
+
+        // Assign IDs to paragraphs that don't have them
+        foreach (var para in paragraphs)
+        {
+            if (string.IsNullOrEmpty(para.ParagraphId?.Value))
+            {
+                string newId;
+                do { newId = GenerateParaId(); } while (!usedIds.Add(newId));
+                para.ParagraphId = newId;
+            }
+            if (string.IsNullOrEmpty(para.TextId?.Value))
+            {
+                string newId;
+                do { newId = GenerateParaId(); } while (!usedIds.Add(newId));
+                para.TextId = newId;
+            }
+        }
+    }
+
+    // ==================== DocPr IDs (pictures, charts) ====================
+
+    /// <summary>
+    /// Ensure all DocProperties in the document have unique IDs.
+    /// Called on document open.
+    /// </summary>
+    private void EnsureDocPropIds()
+    {
+        var mainPart = _doc.MainDocumentPart;
+        if (mainPart?.Document?.Body == null) return;
+
+        var allDocProps = mainPart.Document.Body.Descendants<DW.DocProperties>().ToList();
+
+        foreach (var headerPart in mainPart.HeaderParts)
+            if (headerPart.Header != null)
+                allDocProps.AddRange(headerPart.Header.Descendants<DW.DocProperties>());
+        foreach (var footerPart in mainPart.FooterParts)
+            if (footerPart.Footer != null)
+                allDocProps.AddRange(footerPart.Footer.Descendants<DW.DocProperties>());
+
+        var usedIds = new HashSet<uint>();
+        var duplicates = new List<DW.DocProperties>();
+
+        foreach (var dp in allDocProps)
+        {
+            if (dp.Id?.HasValue == true && !usedIds.Add(dp.Id.Value))
+                duplicates.Add(dp);
+            else if (dp.Id?.HasValue != true)
+                duplicates.Add(dp);
+        }
+
+        foreach (var dp in duplicates)
+        {
+            uint newId = 1;
+            while (!usedIds.Add(newId)) newId++;
+            dp.Id = newId;
+        }
     }
 }

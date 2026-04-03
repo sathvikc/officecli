@@ -170,10 +170,14 @@ public partial class WordHandler
     }
 
     private OpenXmlElement? NavigateToElement(List<PathSegment> segments)
-        => NavigateToElement(segments, out _);
+        => NavigateToElement(segments, out _, out _);
 
     private OpenXmlElement? NavigateToElement(List<PathSegment> segments, out string? availableContext)
+        => NavigateToElement(segments, out availableContext, out _);
+
+    private OpenXmlElement? NavigateToElement(List<PathSegment> segments, out string? availableContext, out string resolvedPath)
     {
+        resolvedPath = "";
         availableContext = null;
         if (segments.Count == 0) return null;
 
@@ -251,6 +255,18 @@ public partial class WordHandler
                 next = childList.ElementAtOrDefault(seg.Index.Value - 1);
             else if (seg.StringIndex == "last()")
                 next = childList.LastOrDefault();
+            else if (seg.StringIndex != null && seg.StringIndex.StartsWith("@paraId=", StringComparison.OrdinalIgnoreCase))
+            {
+                var targetId = seg.StringIndex["@paraId=".Length..];
+                next = childList.OfType<Paragraph>()
+                    .FirstOrDefault(p => string.Equals(p.ParagraphId?.Value, targetId, StringComparison.OrdinalIgnoreCase));
+            }
+            else if (seg.StringIndex != null && seg.StringIndex.StartsWith("@textId=", StringComparison.OrdinalIgnoreCase))
+            {
+                var targetId = seg.StringIndex["@textId=".Length..];
+                next = childList.OfType<Paragraph>()
+                    .FirstOrDefault(p => string.Equals(p.TextId?.Value, targetId, StringComparison.OrdinalIgnoreCase));
+            }
             else
                 next = childList.FirstOrDefault();
 
@@ -260,10 +276,13 @@ public partial class WordHandler
                 return null;
             }
 
-            parentPath += "/" + seg.Name + (seg.Index.HasValue ? $"[{seg.Index}]" : "");
+            // Build positional path segment
+            var posIdx = childList.IndexOf(next) + 1;
+            parentPath += "/" + seg.Name + $"[{posIdx}]";
             current = next;
         }
 
+        resolvedPath = parentPath;
         return current;
     }
 
@@ -325,6 +344,11 @@ public partial class WordHandler
             node.Style = GetStyleName(para);
             node.Preview = node.Text?.Length > 50 ? node.Text[..50] + "..." : node.Text;
             node.ChildCount = GetAllRuns(para).Count();
+
+            if (!string.IsNullOrEmpty(para.ParagraphId?.Value))
+                node.Format["paraId"] = para.ParagraphId.Value;
+            if (!string.IsNullOrEmpty(para.TextId?.Value))
+                node.Format["textId"] = para.TextId.Value;
 
             var pProps = para.ParagraphProperties;
             if (pProps != null)
@@ -508,6 +532,8 @@ public partial class WordHandler
             {
                 node.Type = "picture";
                 var docProps = runDrawing.Descendants<DW.DocProperties>().FirstOrDefault();
+                if (docProps?.Id?.HasValue == true) node.Format["id"] = docProps.Id.Value;
+                if (docProps?.Name?.Value != null) node.Format["name"] = docProps.Name.Value;
                 if (docProps?.Description?.Value != null) node.Format["alt"] = docProps.Description.Value;
                 var extent = runDrawing.Descendants<DW.Extent>().FirstOrDefault();
                 if (extent?.Cx != null) node.Format["width"] = $"{extent.Cx.Value / 360000.0:F1}cm";

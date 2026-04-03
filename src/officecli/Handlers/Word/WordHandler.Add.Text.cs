@@ -19,6 +19,7 @@ public partial class WordHandler
     {
         string resultPath;
         var para = new Paragraph();
+        AssignParaId(para);
         var pProps = new ParagraphProperties();
 
         if (properties.TryGetValue("style", out var style))
@@ -296,6 +297,7 @@ public partial class WordHandler
             {
                 // Wrap m:oMathPara in w:p for schema validity
                 var wrapPara = new Paragraph(mathPara);
+                AssignParaId(wrapPara);
                 if (insertAfter != null)
                 {
                     insertTarget.InsertAfter(wrapPara, insertAfter);
@@ -472,6 +474,9 @@ public partial class WordHandler
             targetPara.AppendChild(newRun);
             resultPath = $"{parentPath}/r[{runCount + 1}]";
         }
+
+        // Refresh textId since paragraph content changed
+        targetPara.TextId = GenerateParaId();
 
         return resultPath;
     }

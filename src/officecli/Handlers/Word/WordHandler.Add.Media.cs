@@ -78,6 +78,7 @@ public partial class WordHandler
             else
             {
                 cxPara = new Paragraph(cxRun);
+                AssignParaId(cxPara);
                 AppendToParent(parent, cxPara);
             }
 
@@ -131,6 +132,7 @@ public partial class WordHandler
         else
         {
             chartPara = new Paragraph(chartRun);
+            AssignParaId(chartPara);
             AppendToParent(parent, chartPara);
         }
 
@@ -203,6 +205,7 @@ public partial class WordHandler
             else
             {
                 imgPara = new Paragraph(imgRun);
+                AssignParaId(imgPara);
                 imgCell.AppendChild(imgPara);
             }
             var imgPIdx = imgCell.Elements<Paragraph>().ToList().IndexOf(imgPara) + 1;
@@ -211,6 +214,7 @@ public partial class WordHandler
         else
         {
             imgPara = new Paragraph(imgRun);
+            AssignParaId(imgPara);
             var imgParaCount = parent.Elements<Paragraph>().Count();
             if (index.HasValue && index.Value < imgParaCount)
             {

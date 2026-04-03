@@ -167,6 +167,7 @@ public partial class WordHandler
                     ? tableData[r][c] : (properties.TryGetValue($"r{r + 1}c{c + 1}", out var rc) ? rc : "");
                 var cellPara = new Paragraph(new ParagraphProperties(
                     new SpacingBetweenLines { After = "0", Line = "240", LineRule = LineSpacingRuleValues.Auto }));
+                AssignParaId(cellPara);
                 if (!string.IsNullOrEmpty(cellText))
                     cellPara.AppendChild(new Run(new Text(cellText) { Space = SpaceProcessingModeValues.Preserve }));
                 var cell = new TableCell(cellPara);
@@ -216,6 +217,7 @@ public partial class WordHandler
         {
             var cellText = properties.TryGetValue($"c{c + 1}", out var ct) ? ct : "";
             var cellPara = new Paragraph();
+            AssignParaId(cellPara);
             if (!string.IsNullOrEmpty(cellText))
                 cellPara.AppendChild(new Run(new Text(cellText) { Space = SpaceProcessingModeValues.Preserve }));
             newRow.AppendChild(new TableCell(cellPara));
@@ -244,6 +246,7 @@ public partial class WordHandler
             throw new ArgumentException("Cells can only be added to a table row: /body/tbl[N]/tr[M]");
 
         var cellParagraph = new Paragraph();
+        AssignParaId(cellParagraph);
         if (properties.TryGetValue("text", out var cellTxt))
             cellParagraph.AppendChild(new Run(new Text(cellTxt) { Space = SpaceProcessingModeValues.Preserve }));
 

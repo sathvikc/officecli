@@ -209,9 +209,15 @@ public partial class WordHandler
             && wp.ChildElements.All(c => c == element || c is ParagraphProperties))
             ? wp : null;
 
+        // Refresh textId on parent paragraph if removing a child element (e.g. run)
+        var parentPara = element.Ancestors<Paragraph>().FirstOrDefault();
+
         element.Remove();
 
         wrapperPara?.Remove();
+
+        if (parentPara != null)
+            parentPara.TextId = GenerateParaId();
 
         _doc.MainDocumentPart?.WordprocessingCommentsPart?.Comments?.Save();
         _doc.MainDocumentPart?.Document?.Save();
@@ -332,6 +338,16 @@ public partial class WordHandler
             ?? throw new ArgumentException($"Source not found: {sourcePath}");
 
         var clone = element.CloneNode(true);
+
+        // Regenerate paraIds on cloned paragraphs to ensure uniqueness
+        var clonedParas = clone is Paragraph cp
+            ? new[] { cp }
+            : clone.Descendants<Paragraph>().ToArray();
+        foreach (var p in clonedParas)
+        {
+            p.ParagraphId = GenerateParaId();
+            p.TextId = GenerateParaId();
+        }
 
         OpenXmlElement targetParent;
         if (targetParentPath is "/" or "" or "/body")

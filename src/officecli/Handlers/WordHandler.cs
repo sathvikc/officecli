@@ -24,6 +24,11 @@ public partial class WordHandler : IDocumentHandler
     {
         _filePath = filePath;
         _doc = WordprocessingDocument.Open(filePath, editable);
+        if (editable)
+        {
+            EnsureAllParaIds();
+            EnsureDocPropIds();
+        }
     }
 
     // ==================== Raw Layer ====================

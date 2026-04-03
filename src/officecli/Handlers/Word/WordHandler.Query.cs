@@ -182,6 +182,10 @@ public partial class WordHandler
 
             var chartInfo = allCharts[chartIdx - 1];
             var chartNode = new DocumentNode { Path = $"/chart[{chartIdx}]", Type = "chart" };
+            if (chartInfo.DocProperties?.Id?.HasValue == true)
+                chartNode.Format["id"] = chartInfo.DocProperties.Id.Value;
+            if (chartInfo.DocProperties?.Name?.Value != null)
+                chartNode.Format["name"] = chartInfo.DocProperties.Name.Value;
 
             if (chartInfo.IsExtended)
             {
@@ -329,7 +333,7 @@ public partial class WordHandler
         }
 
         var parts = ParsePath(path);
-        var element = NavigateToElement(parts, out var ctx);
+        var element = NavigateToElement(parts, out var ctx, out var resolvedPath);
         if (element == null)
         {
             // Check if the path contains footnote/endnote/toc which are handled differently
@@ -340,7 +344,9 @@ public partial class WordHandler
             throw new ArgumentException(msg);
         }
 
-        return ElementToNode(element, path, depth);
+        // Use the resolved positional path when available (normalizes @paraId etc.)
+        var nodePath = !string.IsNullOrEmpty(resolvedPath) ? resolvedPath : path;
+        return ElementToNode(element, nodePath, depth);
     }
 
     /// <summary>Find all SectionProperties in the document (paragraph-level + body-level).</summary>
@@ -917,6 +923,10 @@ public partial class WordHandler
             {
                 var chartInfo = allCharts[i];
                 var node = new DocumentNode { Path = $"/chart[{i + 1}]", Type = "chart" };
+                if (chartInfo.DocProperties?.Id?.HasValue == true)
+                    node.Format["id"] = chartInfo.DocProperties.Id.Value;
+                if (chartInfo.DocProperties?.Name?.Value != null)
+                    node.Format["name"] = chartInfo.DocProperties.Name.Value;
 
                 if (chartInfo.IsExtended)
                 {

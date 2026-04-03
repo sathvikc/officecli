@@ -346,6 +346,7 @@ public partial class WordHandler
         var headerPart = mainPartH.AddNewPart<HeaderPart>();
 
         var hPara = new Paragraph();
+        AssignParaId(hPara);
         var hPProps = new ParagraphProperties();
 
         if (properties.TryGetValue("alignment", out var hAlign) || properties.TryGetValue("align", out hAlign))
@@ -454,6 +455,7 @@ public partial class WordHandler
         var footerPart = mainPartF.AddNewPart<FooterPart>();
 
         var fPara = new Paragraph();
+        AssignParaId(fPara);
         var fPProps = new ParagraphProperties();
 
         if (properties.TryGetValue("alignment", out var fAlign) || properties.TryGetValue("align", out fAlign))

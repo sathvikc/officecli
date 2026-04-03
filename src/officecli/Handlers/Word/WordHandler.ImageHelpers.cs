@@ -197,6 +197,8 @@ public partial class WordHandler
             Type = "picture",
             Text = docProps?.Description?.Value ?? docProps?.Name?.Value ?? ""
         };
+        if (docProps?.Id?.HasValue == true) node.Format["id"] = docProps.Id.Value;
+        if (docProps?.Name?.Value != null) node.Format["name"] = docProps.Name.Value;
         if (extent?.Cx != null) node.Format["width"] = $"{extent.Cx.Value / 360000.0:F1}cm";
         if (extent?.Cy != null) node.Format["height"] = $"{extent.Cy.Value / 360000.0:F1}cm";
         if (docProps?.Description?.Value != null) node.Format["alt"] = docProps.Description.Value;
