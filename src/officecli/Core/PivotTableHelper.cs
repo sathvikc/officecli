@@ -1194,17 +1194,20 @@ internal static partial class PivotTableHelper
             yield break;
         }
 
-        // Row axis convention: outer subtotal row appears BEFORE the children.
-        // Col axis convention: outer subtotal col appears AFTER the children
+        // Row axis subtotal position depends on layout:
+        //   compact/outline: subtotal BEFORE children (subtotalTop, default)
+        //   tabular: subtotal AFTER children (matches Excel-authored tabular pivots)
+        // Col axis convention: subtotal col always AFTER children
         //                     (matches multi_col_authored.xlsx ground truth).
-        if (!isCol)
+        bool subtotalAfter = isCol || ActiveLayoutMode == "tabular";
+        if (!subtotalAfter)
             yield return (node, false, true);
 
         foreach (var child in node.Children)
             foreach (var entry in WalkAxisTreeRecursive(child, isCol))
                 yield return entry;
 
-        if (isCol)
+        if (subtotalAfter)
             yield return (node, false, true);
     }
 
@@ -1427,16 +1430,23 @@ internal static partial class PivotTableHelper
         uint firstDataRow;
         if (colFieldIndices.Count == 0)
         {
-            // colN==0 && K==1: single header row at the top (firstHeaderRow=0,
-            // firstDataRow=1). colN==0 && K>1: two header rows — "Values" axis
-            // caption at R0 and row-field caption + data field names at R1
-            // (firstHeaderRow=1, firstDataRow=2). Matches Excel's canonical
-            // shape verified against encrypted_replica_2.xlsx and
-            // pivot_multi_data_authored_reference.xlsx.
+            // colN==0 && K==1: single header row at the top.
+            //   compact/outline: firstHeaderRow=0, firstDataRow=1
+            //   tabular: firstHeaderRow=1, firstDataRow=1 (header and first
+            //            data row share the same row — verified against
+            //            Excel-authored tabular pivot)
+            // colN==0 && K>1: two header rows — "Values" axis caption at R0
+            //   and row-field caption + data field names at R1
+            //   (firstHeaderRow=1, firstDataRow=2).
             if (valueFields.Count > 1)
             {
                 firstHeaderRow = 1u;
                 firstDataRow = 2u;
+            }
+            else if (ActiveLayoutMode == "tabular")
+            {
+                firstHeaderRow = 1u;
+                firstDataRow = 1u;
             }
             else
             {

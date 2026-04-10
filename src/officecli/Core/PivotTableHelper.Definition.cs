@@ -725,20 +725,25 @@ internal static partial class PivotTableHelper
             .Select((v, i) => (v, i))
             .ToDictionary(t => t.v, t => t.i, StringComparer.Ordinal);
 
-        // CONSISTENCY(subtotals-opts): when subtotals are on, emit one outer
-        // subtotal entry before each group's leaves and compress leaves via r=1
-        // (inherit outer from the subtotal). When subtotals are off, emit the
-        // FIRST leaf of each group with the full (outer, inner) path so the
-        // inheritance chain starts fresh, then compress the rest with r=1.
+        // CONSISTENCY(subtotals-opts): subtotal position depends on layout:
+        //   compact/outline: subtotal BEFORE leaves (subtotalTop)
+        //   tabular: subtotal AFTER leaves (matches Excel-authored tabular pivots)
+        //
+        // When subtotals are on:
+        //   compact/outline: outer subtotal row first, then leaves with r=1
+        //   tabular: first leaf has full (outer,inner) path, rest r=1,
+        //            then subtotal with t="default" after all leaves
+        // When subtotals are off: first leaf has full path, rest r=1
         bool emitSubtotals = ActiveDefaultSubtotal;
+        bool tabularMode = ActiveLayoutMode == "tabular";
         int count = 0;
         foreach (var (outer, inners) in groups)
         {
             var outerPivIdx = outerOrder[outer];
 
-            if (emitSubtotals)
+            if (emitSubtotals && !tabularMode)
             {
-                // Outer subtotal row: <i><x v="outerIdx"/></i>
+                // Compact/outline: outer subtotal row BEFORE leaves
                 var outerEntry = new RowItem();
                 if (outerPivIdx == 0)
                     outerEntry.AppendChild(new MemberPropertyIndex());
@@ -749,21 +754,19 @@ internal static partial class PivotTableHelper
             }
 
             // Leaf rows for each inner of this outer.
-            // When subtotals are on, every leaf uses r=1 to inherit the outer
-            // from the subtotal row that sits just above the group.
-            // When subtotals are off, the FIRST leaf of each outer group must
-            // spell the outer out fresh (bare <i> with 2 x children: outer +
-            // inner); subsequent leaves still use r=1 to inherit the outer
-            // from the previous leaf.
+            // In tabular mode (or when subtotals are off), the FIRST leaf of
+            // each outer group spells the full (outer, inner) path; subsequent
+            // leaves use r=1. In compact/outline with subtotals, every leaf
+            // uses r=1 to inherit from the subtotal row above.
             for (int li = 0; li < inners.Count; li++)
             {
                 var inner = inners[li];
                 var innerPivIdx = innerOrder[inner];
-                bool firstOfGroupWithoutSubtotal = !emitSubtotals && li == 0;
-                var leafEntry = firstOfGroupWithoutSubtotal
+                bool needsFullPath = (tabularMode || !emitSubtotals) && li == 0;
+                var leafEntry = needsFullPath
                     ? new RowItem()
                     : new RowItem { RepeatedItemCount = 1u };
-                if (firstOfGroupWithoutSubtotal)
+                if (needsFullPath)
                 {
                     // Full (outer, inner) path.
                     if (outerPivIdx == 0)
@@ -776,6 +779,18 @@ internal static partial class PivotTableHelper
                 else
                     leafEntry.AppendChild(new MemberPropertyIndex { Val = innerPivIdx });
                 container.AppendChild(leafEntry);
+                count++;
+            }
+
+            if (emitSubtotals && tabularMode)
+            {
+                // Tabular: outer subtotal row AFTER leaves, with t="default"
+                var subtotalEntry = new RowItem { ItemType = ItemValues.Default };
+                if (outerPivIdx == 0)
+                    subtotalEntry.AppendChild(new MemberPropertyIndex());
+                else
+                    subtotalEntry.AppendChild(new MemberPropertyIndex { Val = outerPivIdx });
+                container.AppendChild(subtotalEntry);
                 count++;
             }
         }

@@ -2083,14 +2083,39 @@ internal static partial class PivotTableHelper
                 // rowNode.Depth is 1-based; the label goes at column (anchor + depth - 1).
                 int labelCol = anchorColIdx + rowNode.Depth - 1;
                 row.AppendChild(MakeStringCell(labelCol, rowIdx, rowNode.Label));
-                // "Repeat All Item Labels": fill ancestor labels on every row
-                // so outer group names appear on each leaf row, not just the first.
-                if (ActiveRepeatItemLabels && rowNode.Depth >= 2)
+                // Tabular layout: subtotals appear AFTER leaves, so the first
+                // leaf of each group must also write ancestor labels (otherwise
+                // the outer group name would only appear on the subtotal row
+                // below). Also applies when repeatLabels is on — every leaf
+                // row gets all ancestor labels.
+                if (rowNode.Depth >= 2)
                 {
-                    for (int anc = 0; anc < rowNode.Depth - 1; anc++)
-                        row.InsertBefore(
-                            MakeStringCell(anchorColIdx + anc, rowIdx, rowNode.Path[anc]),
-                            row.FirstChild);
+                    // Determine if ancestor labels should be written:
+                    // - repeatLabels: always
+                    // - tabular first-of-group: the previous row position was
+                    //   a subtotal or from a different outer group
+                    bool writeAncestors = ActiveRepeatItemLabels;
+                    if (!writeAncestors && ActiveLayoutMode == "tabular" && rIsLeaf)
+                    {
+                        // First leaf of group: either rp==0 or previous was a
+                        // subtotal or from a different ancestor path.
+                        if (rp == 0)
+                            writeAncestors = true;
+                        else
+                        {
+                            var (prevNode, _, prevIsSub) = rowPositions[rp - 1];
+                            writeAncestors = prevIsSub
+                                || prevNode.Path.Length < rowNode.Path.Length
+                                || prevNode.Path[0] != rowNode.Path[0];
+                        }
+                    }
+                    if (writeAncestors)
+                    {
+                        for (int anc = 0; anc < rowNode.Depth - 1; anc++)
+                            row.InsertBefore(
+                                MakeStringCell(anchorColIdx + anc, rowIdx, rowNode.Path[anc]),
+                                row.FirstChild);
+                    }
                 }
             }
 
